@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Переменные
+APP_NAME="myapp"
+APP_COMMAND="/path/to/myapp"
+CONFIG_DIR="/etc/supervisor/conf.d"
+CONFIG_FILE="${CONFIG_DIR}/${APP_NAME}.conf"
+
+# Проверка наличия Supervisor и установка при необходимости
+if ! command -v supervisorctl &> /dev/null; then
+  echo "Supervisor не установлен. Установка..."
+  sudo apt-get update
+  sudo apt-get install -y supervisor
+else
+  echo "Supervisor уже установлен."
+fi
+
+# Проверка существования каталога конфигурации
+if [ ! -d "$CONFIG_DIR" ]; then
+  echo "Каталог $CONFIG_DIR не существует. Создание каталога..."
+  sudo mkdir -p "$CONFIG_DIR"
+fi
+
+# Создание конфигурационного файла
+echo "Создание конфигурационного файла для $APP_NAME..."
+sudo tee "$CONFIG_FILE" > /dev/null <<EOL
+[program:${APP_NAME}]
+command=${APP_COMMAND}
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/${APP_NAME}/${APP_NAME}_err.log
+stdout_logfile=/var/log/${APP_NAME}/${APP_NAME}_out.log
+EOL
+
+# Проверка успешного создания файла
+if [ -f "$CONFIG_FILE" ]; then
+  echo "Конфигурационный файл создан: $CONFIG_FILE"
+else
+  echo "Ошибка при создании конфигурационного файла!"
+  exit 1
+fi
+
+# Перезагрузка конфигурации Supervisor
+echo "Перезагрузка конфигурации Supervisor..."
+sudo supervisorctl reread
+sudo supervisorctl update
+
+echo "Скрипт выполнен успешно."
